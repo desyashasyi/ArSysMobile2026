@@ -1,0 +1,38 @@
+version: '3'
+
+#Networks
+networks:
+  default:
+    name: webFPTE
+    external: true
+
+services:
+  app:
+    build:
+        context: .
+        dockerfile: Docker/dockerfile/app.Dockerfile
+    image: arsys
+    container_name: arsys
+    restart: unless-stopped
+    tty: true
+    env_file: .env
+    depends_on:
+      - cache
+
+  web_server:
+    build:
+        context: .
+        dockerfile: Docker/dockerfile/server.Dockerfile
+    image: web_server
+    container_name: web_server
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8002:80"
+    depends_on:
+      - app
+
+  cache:
+    image: redis:alpine
+    container_name: cache
+    restart: unless-stopped

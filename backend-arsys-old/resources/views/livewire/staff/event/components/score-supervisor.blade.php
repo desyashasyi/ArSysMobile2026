@@ -1,0 +1,179 @@
+<div>
+    <div wire:ignore.self class="modal fade" id="staffSupervisorScoreModal" tabindex="-1" role="dialog" aria-labelledby="studentApplyEventModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-md modal-dialog-scrollable" role="document">
+           <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="staffSupervisorScoreModal">Student's Defense/Seminar Score</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <b>Guidance of Defense/Seminar Score</b>
+                    @if($scoreGuide != null)
+                        <div class="row">
+                            <div class="col-md-12 offset-md-0" style="width: 100%; height: 100px; overflow-y: scroll; overflow-x: hidden">
+                                <div class="table-responsive users-table">
+                                    <table class="table table-striped table-sm data-table">
+                                        <thead class="thead">
+                                        <tr>
+                                            <th width="15%">Code</th>
+                                            <th width="30%">Value</th>
+                                            <th width="45%">Description</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="users-table">
+                                            @foreach($scoreGuide as $score)
+                                                <tr>
+                                                    <td>
+                                                        {{$score->code}}
+                                                    </td>
+                                                    <td>
+                                                        {{$score->value}}
+                                                    </td>
+                                                    <td>
+                                                        {{$score->description}}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-12 offset-md-0">
+                                @if(!is_null($supervisor))
+                                    @if($event->event_type_id ==
+                                        \App\Models\ArSys\EventType::where('examination_type', 'Defense')->first()->id)
+                                        @if($supervisor->research->student->program != null)
+                                            {{$supervisor->research->student->program->code}}.{{$supervisor->research->student->number}}
+                                            | {{$supervisor->research->student->first_name}} {{$supervisor->research->student->last_name}}
+                                            <br>
+                                            {{$supervisor->research->code}} 
+                                            | 
+                                            <i>{!!$supervisor->research->title!!}</i>
+
+                                        @endif
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 offset-md-0">
+                                <b>Score:</b> 
+                                @if(!is_null($supervisor))
+                                    @if($event->event_type_id ==
+                                            \App\Models\ArSys\EventType::where('examination_type', 'Defense')->first()->id)
+                                        @if(is_null($supervisor->defenseSupervisorPresence->score))
+                                            NULL
+                                        @else
+                                            {{$supervisor->defenseSupervisorPresence->score}}
+                                        @endif
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 offset-md-0">
+                                <b>Remark:</b>
+                                @if(!is_null($supervisor))
+                                    @if($event->event_type_id ==
+                                            \App\Models\ArSys\EventType::where('examination_type', 'Defense')->first()->id)
+                                        @if(is_null($supervisor->defenseSupervisorPresence->remark))
+                                            NULL
+                                        @else
+                                            {{$supervisor->defenseSupervisorPresence->remark}}
+                                        @endif
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <x-adminlte-input wire:model="defenseScore" placeholder="Input score" name="score" label="Score" style="width: 100%"/>
+                                @error('defenseScore')
+                                    <span class="text-danger">{{ $message }}</span><br>
+                                @enderror
+                            </div>  
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{-- With prepend slot, sm size and label --}}
+                                <x-adminlte-textarea wire:model="defenseremark" name="defenseremark" label="Defense note" rows=5
+                                    igroup-size="sm" placeholder="Insert defense note...">
+                                </x-adminlte-textarea>
+                                @error('defenseremark')
+                                    <span class="text-danger">{{ $message }}</span><br>
+                                @enderror
+                            </div>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer">
+                    <div class="row">
+                        <div class="text-left col-md-12">
+                            @if(!is_null($supervisor))
+                                @if($event->event_type_id ==
+                                    \App\Models\ArSys\EventType::where('examination_type', 'Defense')->first()->id)
+                                    <x-adminlte-button wire:click="submitDefenseScore" theme="success" class="btn-sm" label="Submit" icon="fa fa-save"/>
+                                @endif
+                            @endif
+                        </div>
+                    </div>
+                </div>
+    
+           </div>
+        </div>
+    </div>
+    <script>
+        window.livewire.on('set_ArSysStaffSupervisorScoreModal', () => {
+            $('#staffSupervisorScoreModal').modal('show');
+        });
+    </script>
+    <script>
+        (function(){
+            function autoResizeTextarea(el){
+                if(!el) return;
+                el.style.overflow = 'hidden';
+                el.style.height = 'auto';
+                el.style.height = (el.scrollHeight) + 'px';
+            }
+
+            function initAutoResize(){
+                var textarea = document.querySelector('#staffSupervisorScoreModal textarea[name="defenseremark"]');
+                if(!textarea) return;
+                // initial resize
+                autoResizeTextarea(textarea);
+                // on input
+                textarea.removeEventListener('input', textarea._autoResizeHandler);
+                textarea._autoResizeHandler = function(e){ autoResizeTextarea(e.target); };
+                textarea.addEventListener('input', textarea._autoResizeHandler);
+            }
+
+            // init when modal shown
+            $('#staffSupervisorScoreModal').on('shown.bs.modal', function(){
+                initAutoResize();
+            });
+
+            // also init on page load in case modal is already present
+            document.addEventListener('DOMContentLoaded', function(){
+                initAutoResize();
+            });
+
+            // Livewire hook: in case content updates
+            if(window.livewire){
+                window.livewire.hook('message.processed', (message, component) => {
+                    initAutoResize();
+                });
+            }
+        })();
+    </script>
+</div>
+
+
+<div>
+    
+</div>
