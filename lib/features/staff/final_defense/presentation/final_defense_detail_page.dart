@@ -181,8 +181,8 @@ class _ExaminerRoomCard extends ConsumerWidget {
               final presenceId = applicant['presence_id'] as int?;
               final studentName = applicant['student_name'] as String? ?? '';
               final studentNim = applicant['student_nim'] as String? ?? '';
-              final myScore = applicant['my_score'];
-              final myRemark = applicant['my_remark'] as String?;
+              final myScore = applicant['my_examiner_score'];
+              final myRemark = applicant['my_examiner_remark'] as String?;
               final bool isSupervised = supervisedApplicantIds.contains(applicant['id']);
 
               return _buildParticipantRow(
@@ -240,8 +240,8 @@ class _SupervisorRoomCard extends ConsumerWidget {
               final researchSupervisorId = applicant['research_supervisor_id'] as int?;
               final studentName = applicant['student_name'] as String? ?? '';
               final studentNim = applicant['student_nim'] as String? ?? '';
-              final myScore = applicant['my_score'];
-              final myRemark = applicant['my_remark'] as String?;
+              final myScore = applicant['my_supervisor_score'];
+              final myRemark = applicant['my_supervisor_remark'] as String?;
               return _buildParticipantRow(
                 name: '$studentName ($studentNim)',
                 myScore: myScore,
@@ -504,7 +504,7 @@ Widget _buildPersonRow({
           const SizedBox(width: 8),
           Chip(
             label: const Text('Moderator'),
-            backgroundColor: Colors.purple[200],
+            backgroundColor: Colors.purple[100],
             padding: EdgeInsets.zero,
           ),
         ],

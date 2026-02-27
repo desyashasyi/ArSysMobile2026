@@ -84,6 +84,7 @@ class FinalDefenseController extends Controller
                 'examiner.staff',
                 'applicant.research.student.program',
                 'applicant.research.supervisor.staff',
+                'applicant.research.supervisor.finaldefenseSupervisorPresence',
             ])
             ->get();
 
@@ -140,13 +141,7 @@ class FinalDefenseController extends Controller
                     $myExaminerScoreRecord = $myExaminerScores->get($applicant->id);
 
                     $mySupervisorInfo = $applicant->research->supervisor->firstWhere('supervisor_id', $staffId);
-                    $mySupervisorScore = null;
-                    $mySupervisorRemark = null;
-                    if ($mySupervisorInfo) {
-                        $presence = FinalDefenseSupervisorPresence::where('research_supervisor_id', $mySupervisorInfo->id)->first();
-                        $mySupervisorScore = $presence?->score;
-                        $mySupervisorRemark = $presence?->remark;
-                    }
+                    $mySupervisorScoreRecord = $mySupervisorInfo?->finaldefenseSupervisorPresence;
 
                     return [
                         'id' => $applicant->id,
@@ -154,8 +149,10 @@ class FinalDefenseController extends Controller
                         'research_supervisor_id' => $mySupervisorInfo?->id,
                         'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                         'student_nim' => $student->number ?? 'N/A',
-                        'my_score' => $myExaminerScoreRecord?->score ?? $mySupervisorScore,
-                        'my_remark' => $myExaminerScoreRecord?->remark ?? $mySupervisorRemark,
+                        'my_examiner_score' => $myExaminerScoreRecord?->score,
+                        'my_examiner_remark' => $myExaminerScoreRecord?->remark,
+                        'my_supervisor_score' => $mySupervisorScoreRecord?->score,
+                        'my_supervisor_remark' => $mySupervisorScoreRecord?->remark,
                     ];
                 }),
             ];
