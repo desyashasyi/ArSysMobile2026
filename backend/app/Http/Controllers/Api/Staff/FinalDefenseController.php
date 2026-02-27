@@ -84,7 +84,6 @@ class FinalDefenseController extends Controller
                 'examiner.staff',
                 'applicant.research.student.program',
                 'applicant.research.supervisor.staff',
-                'applicant.research.supervisor.finaldefenseSupervisorPresence',
             ])
             ->get();
 
@@ -141,7 +140,13 @@ class FinalDefenseController extends Controller
                     $myExaminerScoreRecord = $myExaminerScores->get($applicant->id);
 
                     $mySupervisorInfo = $applicant->research->supervisor->firstWhere('supervisor_id', $staffId);
-                    $mySupervisorScoreRecord = $mySupervisorInfo?->finaldefenseSupervisorPresence;
+                    $mySupervisorScore = null;
+                    $mySupervisorRemark = null;
+                    if ($mySupervisorInfo) {
+                        $presence = FinalDefenseSupervisorPresence::where('research_supervisor_id', $mySupervisorInfo->id)->first();
+                        $mySupervisorScore = $presence?->score;
+                        $mySupervisorRemark = $presence?->remark;
+                    }
 
                     return [
                         'id' => $applicant->id,
@@ -149,8 +154,8 @@ class FinalDefenseController extends Controller
                         'research_supervisor_id' => $mySupervisorInfo?->id,
                         'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                         'student_nim' => $student->number ?? 'N/A',
-                        'my_score' => $myExaminerScoreRecord?->score ?? $mySupervisorScoreRecord?->score,
-                        'my_remark' => $myExaminerScoreRecord?->remark ?? $mySupervisorScoreRecord?->remark,
+                        'my_score' => $myExaminerScoreRecord?->score ?? $mySupervisorScore,
+                        'my_remark' => $myExaminerScoreRecord?->remark ?? $mySupervisorRemark,
                     ];
                 }),
             ];
@@ -383,5 +388,3 @@ class FinalDefenseController extends Controller
         return response()->json(['success' => true, 'data' => $data]);
     }
 }
-
-//alhamdulillah success

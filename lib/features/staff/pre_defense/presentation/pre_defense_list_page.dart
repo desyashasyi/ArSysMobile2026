@@ -59,7 +59,7 @@ class PreDefenseListPage extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.purple[50],
+                              color: Colors.purple[200],
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Text(
