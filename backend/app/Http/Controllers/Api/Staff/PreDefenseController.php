@@ -80,11 +80,22 @@ class PreDefenseController extends Controller
                     $subQuery->where('examiner_id', $staffId);
                 });
             })
-            ->with(['research.student', 'space', 'session', 'research.student.program'])
+            ->with(['research.student.program', 'room', 'session', 'research.milestone'])
             ->get();
 
         $transformedData = $participants->map(function ($participant) {
             if (!$participant->research || !$participant->research->student) return null;
+
+            $milestoneCode = $participant->research->milestone?->code;
+            $milestonePhase = $participant->research->milestone?->phase;
+            $milestoneParts = [];
+            if ($milestoneCode) {
+                $milestoneParts[] = $milestoneCode;
+            }
+            if ($milestonePhase) {
+                $milestoneParts[] = $milestonePhase;
+            }
+            $milestoneName = !empty($milestoneParts) ? implode(' | ', $milestoneParts) : 'N/A';
 
             return [
                 'id' => (int) $participant->id,
@@ -92,6 +103,7 @@ class PreDefenseController extends Controller
                 'student_nim' => $participant->research->student->number ?? 'N/A',
                 'program_code' => $participant->research->student->program->code ?? 'N/A',
                 'research_title' => $participant->research->title,
+                'milestone_name' => $milestoneName,
                 'room_name' => $participant->space->code ?? 'N/A',
                 'session_time' => $participant->session->time ?? 'N/A',
             ];
@@ -112,7 +124,8 @@ class PreDefenseController extends Controller
             'defenseExaminer.staff',
             'defenseExaminer.defenseExaminerPresence',
             'space',
-            'session'
+            'session',
+            'research.milestone',
         ])->find($id);
 
         if (!$participant) {
@@ -161,8 +174,22 @@ class PreDefenseController extends Controller
         });
 
         $student = $participant->research->student;
+        $milestoneCode = $participant->research->milestone?->code;
+        $milestonePhase = $participant->research->milestone?->phase;
+        $milestoneParts = [];
+        if ($milestoneCode) {
+            $milestoneParts[] = $milestoneCode;
+        }
+        if ($milestonePhase) {
+            $milestoneParts[] = $milestonePhase;
+        }
+        $milestoneName = !empty($milestoneParts) ? implode(' | ', $milestoneParts) : 'N/A';
+
         $data = [
             'participant' => [
+                'id' => $participant->id,
+                'room_name' => $participant->space->code ?? 'N/A',
+                'session_time' => $participant->session->time ?? 'N/A',
                 'research' => [
                     'title' => $participant->research->title,
                     'student' => [
@@ -172,10 +199,9 @@ class PreDefenseController extends Controller
                         'program_code' => $student->program->code ?? 'N/A',
                     ],
                     'supervisor' => $supervisors,
+                    'milestone_name' => $milestoneName,
                 ],
                 'defense_examiner' => $examiners,
-                'room_name' => $participant->space->code ?? 'N/A',
-                'session_time' => $participant->session->time ?? 'N/A',
             ],
             'is_supervisor' => $isSupervisor,
             'is_examiner' => $isExaminer,

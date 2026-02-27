@@ -181,12 +181,14 @@ class _ExaminerRoomCard extends ConsumerWidget {
               final presenceId = applicant['presence_id'] as int?;
               final studentName = applicant['student_name'] as String? ?? '';
               final studentNim = applicant['student_nim'] as String? ?? '';
+              final milestoneName = applicant['milestone_name'] as String? ?? 'N/A';
               final myScore = applicant['my_examiner_score'];
               final myRemark = applicant['my_examiner_remark'] as String?;
               final bool isSupervised = supervisedApplicantIds.contains(applicant['id']);
 
               return _buildParticipantRow(
                 name: '$studentName ($studentNim)',
+                milestone: milestoneName,
                 myScore: myScore,
                 onPressed: () {
                   if (presenceId != null) {
@@ -240,10 +242,12 @@ class _SupervisorRoomCard extends ConsumerWidget {
               final researchSupervisorId = applicant['research_supervisor_id'] as int?;
               final studentName = applicant['student_name'] as String? ?? '';
               final studentNim = applicant['student_nim'] as String? ?? '';
+              final milestoneName = applicant['milestone_name'] as String? ?? 'N/A';
               final myScore = applicant['my_supervisor_score'];
               final myRemark = applicant['my_supervisor_remark'] as String?;
               return _buildParticipantRow(
                 name: '$studentName ($studentNim)',
+                milestone: milestoneName,
                 myScore: myScore,
                 onPressed: () {
                   if (researchSupervisorId != null) {
@@ -504,7 +508,7 @@ Widget _buildPersonRow({
           const SizedBox(width: 8),
           Chip(
             label: const Text('Moderator'),
-            backgroundColor: Colors.purple[100],
+            backgroundColor: Colors.purple[200],
             padding: EdgeInsets.zero,
           ),
         ],
@@ -531,6 +535,7 @@ Widget _buildPersonRow({
 
 Widget _buildParticipantRow({
   required String name,
+  required String milestone,
   required VoidCallback onPressed,
   dynamic myScore,
   bool showScoreButton = true,
@@ -546,7 +551,19 @@ Widget _buildParticipantRow({
       children: [
         const Icon(Icons.person, color: Colors.grey),
         const SizedBox(width: 8),
-        Expanded(child: Text(name)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name),
+              const SizedBox(height: 2),
+              Text(
+                milestone,
+                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+              ),
+            ],
+          ),
+        ),
         if (showScoreButton) ...[
           const SizedBox(width: 8),
           ElevatedButton(

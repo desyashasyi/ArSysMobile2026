@@ -84,7 +84,11 @@ class PreDefenseListPage extends ConsumerWidget {
                     onTap: () {
                       final id = ev['id'] as int?;
                       if (id != null) {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => PreDefenseDetailPage(eventId: id)));
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PreDefenseDetailPage(eventId: id),
+                          ),
+                        );
                       }
                     },
                   ),

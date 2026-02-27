@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:arsys/features/staff/pre_defense/application/pre_defense_provider.dart';
 import 'package:arsys/features/staff/pre_defense/data/pre_defense_repository.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 class ApplicantDetailPage extends ConsumerWidget {
   final int participantId;
@@ -68,6 +70,7 @@ class ApplicantDetailPage extends ConsumerWidget {
                     student?['number'] ?? 'N/A',
                     '${student?['first_name'] ?? ''} ${student?['last_name'] ?? ''}',
                     (research?['title'] ?? 'No Title').toUpperCase(),
+                    research?['milestone_name'] ?? 'N/A',
                   ),
                   const SizedBox(height: 20),
                   _buildSectionTitle('Supervisors'),
@@ -149,8 +152,21 @@ class ApplicantDetailPage extends ConsumerWidget {
   }
 
   Widget _buildScoreButtons(BuildContext context, WidgetRef ref, int participantId, bool isSupervisor, bool isExaminer, bool isExaminerPresent, Map<String, dynamic> data) {
+    final mySupervisorScore = data['my_supervisor_score'];
+    final myExaminerScore = data['my_examiner_score'];
+
+    String supervisorButtonText = 'Supervisor Score';
+    if (mySupervisorScore != null) {
+      supervisorButtonText = 'Supervisor: $mySupervisorScore';
+    }
+
+    String examinerButtonText = 'Examiner Score';
+    if (myExaminerScore != null) {
+      examinerButtonText = 'Examiner: $myExaminerScore';
+    }
+
     final myScoreColorName = data['my_score_color'] as String?;
-    final cardColor = myScoreColorName == 'success' ? Colors.green[100] : null;
+    final cardColor = myScoreColorName == 'success' ? Colors.purple[200] : null;
 
     return Card(
       elevation: 2,
@@ -163,12 +179,12 @@ class ApplicantDetailPage extends ConsumerWidget {
             if (isSupervisor)
               ElevatedButton(
                 onPressed: () => _showSubmitScoreSheet(context, ref, participantId, data),
-                child: const Text('Supervisor Score'),
+                child: Text(supervisorButtonText),
               ),
             if (isExaminer && isExaminerPresent)
               ElevatedButton(
                 onPressed: () => _showSubmitScoreSheet(context, ref, participantId, data),
-                child: const Text('Examiner Score'),
+                child: Text(examinerButtonText),
               ),
             ElevatedButton(
               onPressed: () => _showScoreGuideSheet(context, ref),
@@ -190,7 +206,7 @@ class ApplicantDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoCard(String room, String session, String program, String nim, String name, String title) {
+  Widget _buildInfoCard(String room, String session, String program, String nim, String name, String title, String milestone) {
     return Card(
       elevation: 2,
       child: ListTile(
@@ -245,6 +261,11 @@ class ApplicantDetailPage extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(title),
+            const SizedBox(height: 4),
+            Text(
+              milestone,
+              style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontStyle: FontStyle.italic),
+            ),
           ],
         ),
       ),
@@ -489,9 +510,13 @@ class _SubmitScoreSheetState extends ConsumerState<SubmitScoreSheet> {
       await ref.read(preDefenseRepositoryProvider).submitScore(widget.participantId, score, remark: remark);
       ref.invalidate(preDefenseParticipantDetailProvider(widget.participantId));
       if (mounted) {
-        _showAlertDialog(context, 'Success', 'Score submitted successfully', onOk: () {
-          Navigator.of(context).pop();
-        });
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.success(
+            message: "Score submitted successfully",
+          ),
+        );
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {

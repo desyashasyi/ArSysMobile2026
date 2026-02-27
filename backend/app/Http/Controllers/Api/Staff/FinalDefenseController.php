@@ -85,6 +85,7 @@ class FinalDefenseController extends Controller
                 'applicant.research.student.program',
                 'applicant.research.supervisor.staff',
                 'applicant.research.supervisor.finaldefenseSupervisorPresence',
+                'applicant.research.milestone',
             ])
             ->get();
 
@@ -143,12 +144,24 @@ class FinalDefenseController extends Controller
                     $mySupervisorInfo = $applicant->research->supervisor->firstWhere('supervisor_id', $staffId);
                     $mySupervisorScoreRecord = $mySupervisorInfo?->finaldefenseSupervisorPresence;
 
+                    $milestoneCode = $applicant->research->milestone?->code;
+                    $milestonePhase = $applicant->research->milestone?->phase;
+                    $milestoneParts = [];
+                    if ($milestoneCode) {
+                        $milestoneParts[] = $milestoneCode;
+                    }
+                    if ($milestonePhase) {
+                        $milestoneParts[] = $milestonePhase;
+                    }
+                    $milestoneName = !empty($milestoneParts) ? implode(' | ', $milestoneParts) : 'N/A';
+
                     return [
                         'id' => $applicant->id,
                         'presence_id' => $myExaminerScoreRecord?->id,
                         'research_supervisor_id' => $mySupervisorInfo?->id,
                         'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                         'student_nim' => $student->number ?? 'N/A',
+                        'milestone_name' => $milestoneName,
                         'my_examiner_score' => $myExaminerScoreRecord?->score,
                         'my_examiner_remark' => $myExaminerScoreRecord?->remark,
                         'my_supervisor_score' => $mySupervisorScoreRecord?->score,
