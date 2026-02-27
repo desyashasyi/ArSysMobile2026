@@ -306,10 +306,15 @@ class ApplicantDetailPage extends ConsumerWidget {
                   color: isPresent ? Colors.green : Colors.grey.shade300,
                 ),
                 onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.showSnackBar(const SnackBar(content: Text('Updating presence...')));
                   try {
                     await ref.read(preDefenseRepositoryProvider).toggleExaminerPresence(examinerId);
-                    ref.invalidate(preDefenseParticipantDetailProvider(participantId));
+                    ref.refresh(preDefenseParticipantDetailProvider(participantId));
+                    messenger.hideCurrentSnackBar();
+                    messenger.showSnackBar(const SnackBar(content: Text('Presence updated successfully.'), backgroundColor: Colors.green));
                   } catch (e) {
+                    messenger.hideCurrentSnackBar();
                     if (context.mounted) {
                       _showAlertDialog(context, 'Error', 'Failed to update presence: $e');
                     }

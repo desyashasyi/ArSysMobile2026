@@ -13,6 +13,7 @@ use App\Models\ArSys\DefenseSupervisorPresence;
 use App\Models\ArSys\ResearchMilestone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class PreDefenseController extends Controller
 {
@@ -229,12 +230,18 @@ class PreDefenseController extends Controller
             DefenseExaminerPresence::create(['defense_examiner_id' => $examinerId]);
 
             $research = $examiner->defenseApplicant->research;
+            Log::info('Before milestone update: ' . $research->milestone_id);
+
             $scheduledMilestone = ResearchMilestone::where('code', 'PRE-DEF-SCH')->first();
             $doneMilestone = ResearchMilestone::where('code', 'PRE-DEF-DONE')->first();
+
+            Log::info('Scheduled Milestone ID: ' . $scheduledMilestone?->id);
+            Log::info('Done Milestone ID: ' . $doneMilestone?->id);
 
             if ($research && $scheduledMilestone && $doneMilestone && $research->milestone_id == $scheduledMilestone->id) {
                 $research->milestone_id = $doneMilestone->id;
                 $research->save();
+                Log::info('After milestone update: ' . $research->milestone_id);
             }
         }
 
