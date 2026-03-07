@@ -27,7 +27,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'sso', // Added sso based on old model
+        'sso',
+        'google_id',
     ];
 
     /**

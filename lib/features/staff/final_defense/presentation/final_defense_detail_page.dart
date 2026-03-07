@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:arsys/features/staff/final_defense/application/final_defense_provider.dart';
 import 'package:arsys/features/staff/final_defense/data/final_defense_repository.dart';
+import 'package:arsys/core/utils/snackbar_helper.dart';
 
 class FinalDefenseDetailPage extends ConsumerWidget {
   final int eventId;
@@ -16,13 +17,35 @@ class FinalDefenseDetailPage extends ConsumerWidget {
       appBar: AppBar(title: Text(eventCode)),
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Failed to load rooms: $err')),
+        error: (err, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+              const SizedBox(height: 12),
+              Text('Failed to load rooms: $err', style: TextStyle(color: Colors.grey[600]), textAlign: TextAlign.center),
+            ],
+          ),
+        ),
         data: (data) {
           final allRooms = data['data'] as List<dynamic>? ?? [];
           if (allRooms.isEmpty) {
             return RefreshIndicator(
               onRefresh: () => ref.refresh(finalDefenseDetailProvider(eventId).future),
-              child: const Center(child: Text('No rooms found for you in this event.'))
+              child: ListView(
+                children: [
+                  const SizedBox(height: 120),
+                  Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.meeting_room_outlined, size: 64, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text('No rooms found for you', style: TextStyle(fontSize: 16, color: Colors.grey[500])),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 
@@ -38,7 +61,13 @@ class FinalDefenseDetailPage extends ConsumerWidget {
                   ...examinerRooms.map((room) => _ExaminerRoomCard(room: room as Map<String, dynamic>, eventId: eventId)),
                 if (supervisorRooms.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text("Supervised Students", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      Icon(Icons.supervisor_account, size: 20, color: Colors.deepPurple[400]),
+                      const SizedBox(width: 8),
+                      const Text("Supervised Students", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   ...supervisorRooms.map((room) => _SupervisorRoomCard(room: room as Map<String, dynamic>, eventId: eventId)),
                 ]
@@ -98,86 +127,110 @@ class _ExaminerRoomCard extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildCard(
-            children: [
-              Row(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: Colors.deepPurple.shade400, width: 4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Room header
+            Container(
+              padding: const EdgeInsets.all(14),
+              color: Colors.deepPurple.withValues(alpha: 0.04),
+              child: Row(
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.blueGrey),
+                  Icon(Icons.meeting_room, size: 18, color: Colors.deepPurple[600]),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(room['room_name'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold))),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.access_time, size: 16, color: Colors.blueGrey),
-                  const SizedBox(width: 8),
-                  Text(room['session_time'] ?? 'N/A'),
+                  Expanded(child: Text(room['room_name'] ?? 'N/A', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.deepPurple[700]))),
+                  const SizedBox(width: 12),
+                  Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text(room['session_time'] ?? 'N/A', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                 ],
               ),
-            ]
-          ),
-          _buildCard(
-            title: 'Examiners and Moderator',
-            children: [
-              if (moderator != null) ...[
-                _buildPersonRow(
-                  name: '${moderator['name']} (${moderator['code']})',
-                  isModerator: true,
-                ),
-                if (filteredExaminers.isNotEmpty) const Divider(),
-              ],
-              ...filteredExaminers.map((e) {
-                final examiner = e as Map<String, dynamic>;
-                final staffId = examiner['staff_id'] as int?;
-                final examinerId = examiner['id'] as int?;
+            ),
 
-                return _buildPersonRow(
-                  name: '${examiner['name']} (${examiner['code']})',
-                  isPresent: examiner['is_present'] ?? false,
-                  isSwitchable: isCurrentUserModerator && staffId != null,
-                  onSwitch: () {
-                    _showConfirmationDialog(
-                      context,
-                      'Switch Moderator',
-                      'Are you sure you want to make ${examiner['name']} the new moderator?',
-                      () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        messenger.showSnackBar(const SnackBar(content: Text('Switching moderator...')));
-                        try {
-                          await ref.read(finalDefenseRepositoryProvider).switchModerator(room['id'], staffId!);
-                          messenger.hideCurrentSnackBar();
-                          messenger.showSnackBar(const SnackBar(content: Text('Moderator switched successfully! Refreshing...'), backgroundColor: Colors.green));
-                          ref.refresh(finalDefenseDetailProvider(eventId));
-                        } catch (e) {
-                          messenger.hideCurrentSnackBar();
-                          messenger.showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
-                        }
-                      },
-                    );
-                  },
-                  onTogglePresence: isCurrentUserModerator && examinerId != null
-                      ? () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          messenger.showSnackBar(const SnackBar(content: Text('Updating presence...')));
+            // Examiners and moderator
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+              child: Row(
+                children: [
+                  Icon(Icons.people_alt, size: 16, color: Colors.deepPurple[400]),
+                  const SizedBox(width: 6),
+                  Text('Examiners & Moderator', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.deepPurple[400])),
+                ],
+              ),
+            ),
+            if (moderator != null)
+              _buildPersonTile(
+                name: '${moderator['name']} (${moderator['code']})',
+                isModerator: true,
+              ),
+            if (moderator != null && filteredExaminers.isNotEmpty)
+              const Divider(height: 1, indent: 56),
+            ...filteredExaminers.asMap().entries.map((entry) {
+              final index = entry.key;
+              final examiner = entry.value as Map<String, dynamic>;
+              final staffId = examiner['staff_id'] as int?;
+              final examinerId = examiner['id'] as int?;
+
+              return Column(
+                children: [
+                  if (index > 0) const Divider(height: 1, indent: 56),
+                  _buildPersonTile(
+                    name: '${examiner['name']} (${examiner['code']})',
+                    isPresent: examiner['is_present'] ?? false,
+                    isSwitchable: isCurrentUserModerator && staffId != null,
+                    onSwitch: () {
+                      _showConfirmationDialog(
+                        context,
+                        'Switch Moderator',
+                        'Are you sure you want to make ${examiner['name']} the new moderator?',
+                        () async {
                           try {
-                            await ref.read(finalDefenseRepositoryProvider).toggleExaminerPresence(room['id'], examinerId);
-                            messenger.hideCurrentSnackBar();
-                            messenger.showSnackBar(const SnackBar(content: Text('Presence updated successfully! Refreshing...'), backgroundColor: Colors.green));
+                            await ref.read(finalDefenseRepositoryProvider).switchModerator(room['id'], staffId!);
+                            if (context.mounted) showSuccessSnackBar(context, 'Moderator switched successfully!');
                             ref.refresh(finalDefenseDetailProvider(eventId));
                           } catch (e) {
-                            messenger.hideCurrentSnackBar();
-                            messenger.showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+                            if (context.mounted) showErrorSnackBar(context, 'Error: ${e.toString()}');
                           }
-                        }
-                      : null,
-                );
-              }).toList(),
-            ]
-          ),
-          _buildCard(
-            title: 'Participants',
-            children: applicants.map((a) {
-              final applicant = a as Map<String, dynamic>;
+                        },
+                      );
+                    },
+                    onTogglePresence: isCurrentUserModerator && examinerId != null
+                        ? () async {
+                            try {
+                              await ref.read(finalDefenseRepositoryProvider).toggleExaminerPresence(room['id'], examinerId);
+                              if (context.mounted) showSuccessSnackBar(context, 'Presence updated!');
+                              ref.refresh(finalDefenseDetailProvider(eventId));
+                            } catch (e) {
+                              if (context.mounted) showErrorSnackBar(context, 'Error: ${e.toString()}');
+                            }
+                          }
+                        : null,
+                  ),
+                ],
+              );
+            }),
+
+            const Divider(height: 1),
+
+            // Participants
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+              child: Row(
+                children: [
+                  Icon(Icons.school, size: 16, color: Colors.deepPurple[400]),
+                  const SizedBox(width: 6),
+                  Text('Participants', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.deepPurple[400])),
+                ],
+              ),
+            ),
+            ...applicants.asMap().entries.map((entry) {
+              final index = entry.key;
+              final applicant = entry.value as Map<String, dynamic>;
               final presenceId = applicant['presence_id'] as int?;
               final studentName = applicant['student_name'] as String? ?? '';
               final studentNim = applicant['student_nim'] as String? ?? '';
@@ -186,20 +239,29 @@ class _ExaminerRoomCard extends ConsumerWidget {
               final myRemark = applicant['my_examiner_remark'] as String?;
               final bool isSupervised = supervisedApplicantIds.contains(applicant['id']);
 
-              return _buildParticipantRow(
-                name: '$studentName ($studentNim)',
-                milestone: milestoneName,
-                myScore: myScore,
-                onPressed: () {
-                  if (presenceId != null) {
-                    _showScoreBottomSheet(context, ref, eventId, presenceId, null, studentName, studentNim, myScore, myRemark);
-                  }
-                },
-                showScoreButton: !isSupervised,
+              return Column(
+                children: [
+                  if (index > 0) const Divider(height: 1, indent: 56),
+                  _buildParticipantTile(
+                    context: context,
+                    ref: ref,
+                    name: studentName,
+                    nim: studentNim,
+                    milestone: milestoneName,
+                    myScore: myScore,
+                    showScoreButton: !isSupervised,
+                    onPressed: () {
+                      if (presenceId != null) {
+                        _showScoreBottomSheet(context, ref, eventId, presenceId, null, studentName, studentNim, myScore, myRemark);
+                      }
+                    },
+                  ),
+                ],
               );
-            }).toList(),
-          ),
-        ],
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -218,46 +280,62 @@ class _SupervisorRoomCard extends ConsumerWidget {
         .toList();
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        children: [
-          _buildCard(
-            children: [
-              Row(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: Colors.purple.shade300, width: 4)),
+        ),
+        child: Column(
+          children: [
+            // Room header
+            Container(
+              padding: const EdgeInsets.all(14),
+              color: Colors.purple.withValues(alpha: 0.04),
+              child: Row(
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.blueGrey),
+                  Icon(Icons.meeting_room, size: 18, color: Colors.purple[600]),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(room['room_name'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold))),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.access_time, size: 16, color: Colors.blueGrey),
-                  const SizedBox(width: 8),
-                  Text(room['session_time'] ?? 'N/A'),
+                  Expanded(child: Text(room['room_name'] ?? 'N/A', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.purple[700]))),
+                  const SizedBox(width: 12),
+                  Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text(room['session_time'] ?? 'N/A', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                 ],
               ),
-            ]
-          ),
-          _buildCard(
-            children: applicants.map((a) {
-              final applicant = a as Map<String, dynamic>;
+            ),
+            ...applicants.asMap().entries.map((entry) {
+              final index = entry.key;
+              final applicant = entry.value as Map<String, dynamic>;
               final researchSupervisorId = applicant['research_supervisor_id'] as int?;
               final studentName = applicant['student_name'] as String? ?? '';
               final studentNim = applicant['student_nim'] as String? ?? '';
               final milestoneName = applicant['milestone_name'] as String? ?? 'N/A';
               final myScore = applicant['my_supervisor_score'];
               final myRemark = applicant['my_supervisor_remark'] as String?;
-              return _buildParticipantRow(
-                name: '$studentName ($studentNim)',
-                milestone: milestoneName,
-                myScore: myScore,
-                onPressed: () {
-                  if (researchSupervisorId != null) {
-                    _showScoreBottomSheet(context, ref, eventId, null, researchSupervisorId, studentName, studentNim, myScore, myRemark);
-                  }
-                },
+
+              return Column(
+                children: [
+                  if (index > 0) const Divider(height: 1, indent: 56),
+                  _buildParticipantTile(
+                    context: context,
+                    ref: ref,
+                    name: studentName,
+                    nim: studentNim,
+                    milestone: milestoneName,
+                    myScore: myScore,
+                    onPressed: () {
+                      if (researchSupervisorId != null) {
+                        _showScoreBottomSheet(context, ref, eventId, null, researchSupervisorId, studentName, studentNim, myScore, myRemark);
+                      }
+                    },
+                  ),
+                ],
               );
-            }).toList(),
-          ),
-        ],
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -267,106 +345,108 @@ void _showScoreBottomSheet(BuildContext context, WidgetRef ref, int eventId, int
   final scoreController = TextEditingController(text: (myScore != null && myScore != -1) ? myScore.toString() : '');
   final remarkController = TextEditingController(text: myRemark);
 
-  final ovalBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(24),
-    borderSide: const BorderSide(color: Colors.grey),
-  );
-
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
     ),
+    backgroundColor: Colors.deepPurple[50],
     builder: (context) {
       return Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20.0)),
-          child: Container(
-            color: Colors.purple[100],
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Submit Score', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                Text(
-                  '$studentNim - $studentName',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.left,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: scoreController,
-                  decoration: InputDecoration(
-                    labelText: 'Score',
-                    border: ovalBorder,
-                    focusedBorder: ovalBorder,
-                    enabledBorder: ovalBorder,
-                  ),
-                  keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.grading, color: Colors.deepPurple[600]),
+                  const SizedBox(width: 8),
+                  const Text('Submit Score', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '$studentNim - $studentName',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: scoreController,
+                decoration: InputDecoration(
+                  labelText: 'Score',
+                  prefixIcon: const Icon(Icons.score),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: remarkController,
-                  decoration: InputDecoration(
-                    labelText: 'Remark',
-                    border: ovalBorder,
-                    focusedBorder: ovalBorder,
-                    enabledBorder: ovalBorder,
-                  ),
-                  maxLines: 3,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: remarkController,
+                decoration: InputDecoration(
+                  labelText: 'Remark',
+                  prefixIcon: const Icon(Icons.note),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  alignLabelWithHint: true,
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => _showScoreGuideBottomSheet(context),
-                      child: const Text('Scoring Guide'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        final navigator = Navigator.of(context);
-                        final score = int.tryParse(scoreController.text);
-                        final remark = remarkController.text;
+                maxLines: 3,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _showScoreGuideBottomSheet(context),
+                    icon: Icon(Icons.info_outline, size: 16, color: Colors.deepPurple[400]),
+                    label: Text('Scoring Guide', style: TextStyle(color: Colors.deepPurple[400])),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final navigator = Navigator.of(context);
+                      final score = int.tryParse(scoreController.text);
+                      final remark = remarkController.text;
 
-                        if (score == null) {
-                          messenger.showSnackBar(const SnackBar(content: Text('Please enter a valid score.'), backgroundColor: Colors.red));
-                          return;
-                        }
+                      if (score == null) {
+                        if (context.mounted) showErrorSnackBar(context, 'Please enter a valid score.');
+                        return;
+                      }
 
-                        messenger.showSnackBar(const SnackBar(content: Text('Submitting score...')));
-                        try {
-                          if (presenceId != null) {
-                            await ref.read(finalDefenseRepositoryProvider).submitExaminerScore(presenceId, score, remark);
-                          } else if (supervisorId != null) {
-                            await ref.read(finalDefenseRepositoryProvider).submitSupervisorScore(supervisorId, score, remark);
-                          } else {
-                            throw Exception('No valid ID provided for submission.');
-                          }
-                          messenger.hideCurrentSnackBar();
-                          messenger.showSnackBar(const SnackBar(content: Text('Score submitted successfully! Refreshing...'), backgroundColor: Colors.green));
-                          navigator.pop();
-                          ref.refresh(finalDefenseDetailProvider(eventId));
-                        } catch (e) {
-                          messenger.hideCurrentSnackBar();
-                          messenger.showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+                      try {
+                        if (presenceId != null) {
+                          await ref.read(finalDefenseRepositoryProvider).submitExaminerScore(presenceId, score, remark);
+                        } else if (supervisorId != null) {
+                          await ref.read(finalDefenseRepositoryProvider).submitSupervisorScore(supervisorId, score, remark);
+                        } else {
+                          throw Exception('No valid ID provided for submission.');
                         }
-                      },
-                      child: const Text('Submit'),
+                        if (context.mounted) showSuccessSnackBar(context, 'Score submitted successfully!');
+                        navigator.pop();
+                        ref.refresh(finalDefenseDetailProvider(eventId));
+                      } catch (e) {
+                        if (context.mounted) showErrorSnackBar(context, 'Error: ${e.toString()}');
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                    child: const Text('Submit', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       );
@@ -381,26 +461,39 @@ void _showScoreGuideBottomSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
     ),
+    backgroundColor: Colors.deepPurple[50],
     builder: (context) {
-      return ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20.0)),
-        child: Container(
-          color: Colors.purple[50],
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Scoring Guide', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Consumer(
-                builder: (context, ref, child) {
-                  final scoreGuideAsync = ref.watch(finalDefenseScoreGuideProvider);
-                  return scoreGuideAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Center(child: Text('Error: $err')),
-                    data: (scoreGuide) {
-                      return Table(
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.deepPurple),
+                SizedBox(width: 8),
+                Text('Scoring Guide', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Consumer(
+              builder: (context, ref, child) {
+                final scoreGuideAsync = ref.watch(finalDefenseScoreGuideProvider);
+                return scoreGuideAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Center(child: Text('Error: $err')),
+                  data: (scoreGuide) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Table(
                         border: TableBorder.all(color: Colors.grey.shade300),
                         columnWidths: const {
                           0: FlexColumnWidth(1),
@@ -409,81 +502,38 @@ void _showScoreGuideBottomSheet(BuildContext context) {
                         },
                         children: [
                           TableRow(
-                            decoration: BoxDecoration(color: Colors.grey.shade200),
+                            decoration: BoxDecoration(color: Colors.deepPurple[100]),
                             children: const [
-                              Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Text('Grade', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Text('Score', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
+                              Padding(padding: EdgeInsets.all(10.0), child: Text('Grade', style: TextStyle(fontWeight: FontWeight.bold))),
+                              Padding(padding: EdgeInsets.all(10.0), child: Text('Score', style: TextStyle(fontWeight: FontWeight.bold))),
+                              Padding(padding: EdgeInsets.all(10.0), child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold))),
                             ],
                           ),
                           ...scoreGuide.map((guide) {
                             final item = guide as Map<String, dynamic>;
-                            return _buildScoreGuideRow(
-                              item['code']?.toString() ?? '',
-                              item['value']?.toString() ?? '',
-                              item['description']?.toString() ?? '',
+                            return TableRow(
+                              children: [
+                                Padding(padding: const EdgeInsets.all(10.0), child: Text(item['code']?.toString() ?? '', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600))),
+                                Padding(padding: const EdgeInsets.all(10.0), child: Text(item['value']?.toString() ?? '')),
+                                Padding(padding: const EdgeInsets.all(10.0), child: Text(item['description']?.toString() ?? '')),
+                              ],
                             );
-                          }).toList(),
+                          }),
                         ],
-                      );
-                    },
-                  );
-                },
-              ),
-            ],
-          ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ),
       );
     },
   );
 }
 
-TableRow _buildScoreGuideRow(String grade, String score, String description) {
-  return TableRow(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(grade, textAlign: TextAlign.center),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(score),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(description),
-      ),
-    ],
-  );
-}
-
-Widget _buildCard({String? title, required List<Widget> children}) {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null) ...[
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-        ],
-        ...children,
-      ],
-    ),
-  );
-}
-
-Widget _buildPersonRow({
+Widget _buildPersonTile({
   required String name,
   bool isPresent = false,
   bool isModerator = false,
@@ -491,87 +541,96 @@ Widget _buildPersonRow({
   VoidCallback? onSwitch,
   VoidCallback? onTogglePresence,
 }) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4.0),
-    child: Row(
-      children: [
-        isSwitchable
-            ? IconButton(
-                icon: const Icon(Icons.person),
-                onPressed: onSwitch,
-                tooltip: 'Make Moderator',
-              )
-            : const Icon(Icons.person, color: Colors.grey),
-        const SizedBox(width: 8),
-        Expanded(child: Text(name)),
-        if (isModerator) ...[
-          const SizedBox(width: 8),
-          Chip(
-            label: const Text('Moderator'),
-            backgroundColor: Colors.purple[200],
-            padding: EdgeInsets.zero,
-          ),
-        ],
-        if (!isModerator) ...[
-          const SizedBox(width: 8),
-          onTogglePresence != null
-              ? IconButton(
-                  icon: Icon(
-                    Icons.check_circle,
-                    color: isPresent ? Colors.green : Colors.grey.shade300,
-                  ),
-                  onPressed: onTogglePresence,
-                  tooltip: 'Toggle Presence',
-                )
-              : Icon(
-                  Icons.check_circle,
-                  color: isPresent ? Colors.green : Colors.grey.shade300,
-                ),
-        ]
-      ],
+  return ListTile(
+    dense: true,
+    leading: CircleAvatar(
+      radius: 16,
+      backgroundColor: isModerator ? Colors.deepPurple[50] : (isPresent ? Colors.green[50] : Colors.grey[100]),
+      child: isSwitchable
+          ? InkWell(
+              onTap: onSwitch,
+              child: Icon(Icons.person, size: 18, color: Colors.deepPurple[400]),
+            )
+          : Icon(Icons.person, size: 18, color: isModerator ? Colors.deepPurple[400] : (isPresent ? Colors.green : Colors.grey)),
     ),
+    title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+    trailing: isModerator
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text('Moderator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.deepPurple[600])),
+          )
+        : onTogglePresence != null
+            ? IconButton(
+                icon: Icon(
+                  isPresent ? Icons.check_circle : Icons.check_circle_outline,
+                  color: isPresent ? Colors.green : Colors.grey.shade300,
+                  size: 22,
+                ),
+                onPressed: onTogglePresence,
+                tooltip: 'Toggle Presence',
+              )
+            : Icon(
+                isPresent ? Icons.check_circle : Icons.check_circle_outline,
+                color: isPresent ? Colors.green : Colors.grey.shade300,
+                size: 22,
+              ),
   );
 }
 
-Widget _buildParticipantRow({
+Widget _buildParticipantTile({
+  required BuildContext context,
+  required WidgetRef ref,
   required String name,
+  required String nim,
   required String milestone,
   required VoidCallback onPressed,
   dynamic myScore,
   bool showScoreButton = true,
 }) {
-  String buttonText = 'Score';
-  if (myScore != null && myScore != -1) {
-    buttonText = myScore.toString();
-  }
+  final hasScore = myScore != null && myScore != -1;
 
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4.0),
-    child: Row(
+  return ListTile(
+    dense: true,
+    leading: CircleAvatar(
+      radius: 16,
+      backgroundColor: hasScore ? Colors.green[50] : Colors.grey[100],
+      child: Icon(Icons.school, size: 18, color: hasScore ? Colors.green : Colors.grey),
+    ),
+    title: Text('$name ($nim)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+    subtitle: Row(
       children: [
-        const Icon(Icons.person, color: Colors.grey),
-        const SizedBox(width: 8),
+        Icon(Icons.flag_outlined, size: 12, color: Colors.purple[300]),
+        const SizedBox(width: 4),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name),
-              const SizedBox(height: 2),
-              Text(
-                milestone,
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
-              ),
-            ],
-          ),
+          child: Text(milestone, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
         ),
-        if (showScoreButton) ...[
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: onPressed,
-            child: Text(buttonText),
-          ),
-        ]
       ],
     ),
+    trailing: showScoreButton
+        ? InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: hasScore ? Colors.green.withValues(alpha: 0.1) : Colors.deepPurple.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: hasScore ? Colors.green.withValues(alpha: 0.3) : Colors.deepPurple.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                hasScore ? myScore.toString() : 'Score',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: hasScore ? Colors.green[700] : Colors.deepPurple[400],
+                ),
+              ),
+            ),
+          )
+        : null,
   );
 }

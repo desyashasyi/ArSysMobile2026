@@ -9,7 +9,6 @@ class DefenseSupervisorPresence extends Model
 {
     use HasFactory;
     protected $guarded = [];
-    protected $fillable = [];
     protected $table = 'arsys_defense_supervisor_presence';
     public function supervisor(){
         return $this->belongsTo(ResearchSupervisor::class, 'research_supervisor_id','id');

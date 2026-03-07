@@ -1,16 +1,23 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Api\Staff\SuperviseController;
 use App\Http\Controllers\Api\Staff\ReviewController;
 use App\Http\Controllers\Api\Staff\PreDefenseController;
 use App\Http\Controllers\Api\Staff\FinalDefenseController;
+use App\Http\Controllers\Api\Student\ResearchController as StudentResearchController;
+use App\Http\Controllers\Api\Student\EventController as StudentEventController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\ProgramController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Rute yang tidak memerlukan autentikasi
 Route::post('/login', [LoginController::class, 'login']);
+Route::post('/auth/google', [GoogleController::class, 'loginWithIdToken']);
 // Route::post('/register', [RegisterController::class, 'register']); // Disabled
 
 // Rute yang memerlukan autentikasi JWT
@@ -58,6 +65,51 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/supervisor/{supervisorId}/score', [FinalDefenseController::class, 'submitSupervisorScore'])->name('supervisor.score');
             Route::get('/score-guide', [FinalDefenseController::class, 'getScoreGuide'])->name('score_guide');
         });
+    });
+
+    // Rute untuk Student
+    Route::prefix('student')->name('student.')->group(function () {
+        Route::prefix('events')->name('events.')->group(function () {
+            Route::get('/', [StudentEventController::class, 'index'])->name('index');
+            Route::get('/{id}', [StudentEventController::class, 'show'])->name('show');
+        });
+
+        Route::prefix('research')->name('research.')->group(function () {
+            Route::get('/', [StudentResearchController::class, 'index'])->name('index');
+            Route::get('/types', [StudentResearchController::class, 'getResearchTypes'])->name('types');
+            Route::post('/', [StudentResearchController::class, 'store'])->name('store');
+            Route::get('/{id}', [StudentResearchController::class, 'show'])->name('show');
+            Route::put('/{id}', [StudentResearchController::class, 'update'])->name('update');
+            Route::delete('/{id}', [StudentResearchController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/submit', [StudentResearchController::class, 'submitProposal'])->name('submit');
+            Route::post('/{id}/remark', [StudentResearchController::class, 'addRemark'])->name('remark');
+            Route::delete('/{id}/remark/{remarkId}', [StudentResearchController::class, 'deleteRemark'])->name('remark.delete');
+            Route::post('/{id}/renew', [StudentResearchController::class, 'renewResearch'])->name('renew');
+        });
+    });
+
+    // Profile
+    Route::get('/user/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::put('/user/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // News
+    Route::prefix('news')->name('news.')->group(function () {
+        Route::get('/', [NewsController::class, 'index'])->name('index');
+        Route::post('/', [NewsController::class, 'store'])->name('store');
+        Route::put('/{id}', [NewsController::class, 'update'])->name('update');
+        Route::delete('/{id}', [NewsController::class, 'destroy'])->name('destroy');
+    });
+
+    // Program (Kaprodi) routes
+    Route::prefix('program')->name('program.')->group(function () {
+        Route::get('/pre-defense', [ProgramController::class, 'preDefenseEvents'])->name('pre-defense.index');
+        Route::get('/pre-defense/{eventId}', [ProgramController::class, 'preDefenseDetail'])->name('pre-defense.detail');
+        Route::get('/final-defense', [ProgramController::class, 'finalDefenseEvents'])->name('final-defense.index');
+        Route::get('/final-defense/{eventId}/rooms', [ProgramController::class, 'finalDefenseRooms'])->name('final-defense.rooms');
+        Route::get('/final-defense/{eventId}/room/{roomId}', [ProgramController::class, 'finalDefenseRoomDetail'])->name('final-defense.room.detail');
+        Route::get('/approvals', [ProgramController::class, 'approvalList'])->name('approvals.index');
+        Route::get('/approvals/{id}', [ProgramController::class, 'approvalDetail'])->name('approvals.detail');
+        Route::post('/approvals/{id}/approve', [ProgramController::class, 'approve'])->name('approvals.approve');
     });
 
     // Staff lookup for frontend autocomplete/search

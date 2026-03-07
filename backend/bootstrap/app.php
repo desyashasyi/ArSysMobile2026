@@ -17,7 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
         Laravel\Sanctum\SanctumServiceProvider::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

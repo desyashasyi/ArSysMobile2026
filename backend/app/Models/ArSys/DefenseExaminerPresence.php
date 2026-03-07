@@ -9,7 +9,6 @@ class DefenseExaminerPresence extends Model
 {
     use HasFactory;
     protected $guarded = [];
-    protected $fillable = [];
     protected $table = 'arsys_defense_examiner_presence';
     public function examiner(){
         return $this->belongsTo(DefenseExaminer::class, 'defense_examiner_id','id');

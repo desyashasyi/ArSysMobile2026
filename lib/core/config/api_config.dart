@@ -6,6 +6,6 @@ String getBaseUrl() {
     return 'http://127.0.0.1:8000/api';
   } else {
     // Running on a mobile device
-    return 'http://192.168.100.26:8000/api';
+    return 'http://192.168.100.194:8000/api';
   }
 }

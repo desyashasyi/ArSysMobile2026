@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "475080104398",
+    "project_id": "arsysmobile",
+    "storage_bucket": "arsysmobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475080104398:android:e2c6777ccfbcc7797c739f",
+        "android_client_info": {
+          "package_name": "com.deewahyu.arsys"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475080104398-g31vipav5iqmb9r4depd6cq5g9hu8b9p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.deewahyu.arsys",
+            "certificate_hash": "f9fb2be0b5b264cd7c9043f69fd24f88bea83fc4"
+          }
+        },
+        {
+          "client_id": "475080104398-g49ra9buvh22bnvnqrnjkll07lnq0ovp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCM5hmKk10BvddjoxzwkVqt00DqtNExxZA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475080104398-g49ra9buvh22bnvnqrnjkll07lnq0ovp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

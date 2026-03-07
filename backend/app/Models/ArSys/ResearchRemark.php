@@ -10,7 +10,6 @@ class ResearchRemark extends Model
 {
     use HasFactory;
     protected $guarded = [];
-    protected $fillable = [];
     protected $table = 'arsys_research_remark';
     
     public function user(){

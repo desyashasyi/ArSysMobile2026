@@ -10,6 +10,9 @@ use App\Models\ArSys\DefenseExaminerPresence;
 use App\Models\ArSys\DefenseScoreGuide;
 use App\Models\ArSys\Staff;
 use App\Models\ArSys\DefenseSupervisorPresence;
+use App\Models\ArSys\Research;
+use App\Models\ArSys\ResearchLog;
+use App\Models\ArSys\ResearchLogType;
 use App\Models\ArSys\ResearchMilestone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -138,21 +141,24 @@ class PreDefenseController extends Controller
         $isExaminer = $examiner ? true : false;
         $isExaminerPresent = $isExaminer && $examiner->defenseExaminerPresence;
 
-        $myScore = null;
-        $myRemark = null;
+        $mySupervisorScore = null;
+        $mySupervisorRemark = null;
+        $myExaminerScore = null;
+        $myExaminerRemark = null;
 
         if ($isSupervisor) {
             $supervisor = $participant->research->supervisor->where('supervisor_id', $staffId)->first();
-            $myScore = $supervisor->defenseSupervisorPresence->score ?? null;
-            $myRemark = $supervisor->defenseSupervisorPresence->remark ?? null;
-        } elseif ($isExaminerPresent) {
-            $myScore = $examiner->defenseExaminerPresence->score ?? null;
-            $myRemark = $examiner->defenseExaminerPresence->remark ?? null;
+            $mySupervisorScore = $supervisor->defenseSupervisorPresence?->score ?? null;
+            $mySupervisorRemark = $supervisor->defenseSupervisorPresence?->remark ?? null;
+        }
+        if ($isExaminerPresent) {
+            $myExaminerScore = $examiner->defenseExaminerPresence->score ?? null;
+            $myExaminerRemark = $examiner->defenseExaminerPresence->remark ?? null;
         }
 
         $supervisors = $participant->research->supervisor->map(function ($supervisor) {
             $staff = $supervisor->staff;
-            $score = $supervisor->defenseSupervisorPresence->score ?? null;
+            $score = $supervisor->defenseSupervisorPresence?->score ?? null;
             return [
                 'name' => $staff ? trim($staff->first_name . ' ' . $staff->last_name) : 'Unknown Supervisor',
                 'code' => $staff->code ?? 'N/A',
@@ -163,7 +169,7 @@ class PreDefenseController extends Controller
 
         $examiners = $participant->defenseExaminer->map(function ($examiner) {
             $staff = $examiner->staff;
-            $score = $examiner->defenseExaminerPresence->score ?? null;
+            $score = $examiner->defenseExaminerPresence?->score ?? null;
             return [
                 'id' => $examiner->id,
                 'name' => $staff ? trim($staff->first_name . ' ' . $staff->last_name) : 'Unknown Examiner',
@@ -207,9 +213,11 @@ class PreDefenseController extends Controller
             'is_supervisor' => $isSupervisor,
             'is_examiner' => $isExaminer,
             'is_examiner_present' => $isExaminerPresent,
-            'my_score' => $myScore,
-            'my_remark' => $myRemark,
-            'my_score_color' => is_null($myScore) ? 'danger' : 'success',
+            'my_supervisor_score' => $mySupervisorScore,
+            'my_supervisor_remark' => $mySupervisorRemark,
+            'my_examiner_score' => $myExaminerScore,
+            'my_examiner_remark' => $myExaminerRemark,
+            'my_score_color' => (is_null($mySupervisorScore) && is_null($myExaminerScore)) ? 'danger' : 'success',
         ];
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -217,35 +225,71 @@ class PreDefenseController extends Controller
 
     public function toggleExaminerPresence(Request $request, $examinerId)
     {
-        $examiner = DefenseExaminer::with('defenseApplicant.research')->find($examinerId);
+        $examiner = DefenseExaminer::with('defenseExaminerPresence')->find($examinerId);
         if (!$examiner) {
             return response()->json(['success' => false, 'message' => 'Examiner not found.'], 404);
         }
 
-        $presence = DefenseExaminerPresence::where('defense_examiner_id', $examinerId)->first();
-
-        if ($presence) {
-            $presence->delete();
-        } else {
-            DefenseExaminerPresence::create(['defense_examiner_id' => $examinerId]);
-
-            $research = $examiner->defenseApplicant->research;
-            Log::info('Before milestone update: ' . $research->milestone_id);
-
-            $scheduledMilestone = ResearchMilestone::where('code', 'PRE-DEF-SCH')->first();
-            $doneMilestone = ResearchMilestone::where('code', 'PRE-DEF-DONE')->first();
-
-            Log::info('Scheduled Milestone ID: ' . $scheduledMilestone?->id);
-            Log::info('Done Milestone ID: ' . $doneMilestone?->id);
-
-            if ($research && $scheduledMilestone && $doneMilestone && $research->milestone_id == $scheduledMilestone->id) {
-                $research->milestone_id = $doneMilestone->id;
-                $research->save();
-                Log::info('After milestone update: ' . $research->milestone_id);
+        try {
+            if ($examiner->defenseExaminerPresence) {
+                $examiner->defenseExaminerPresence->delete();
+                return response()->json(['success' => true, 'message' => 'Presence removed.']);
             }
-        }
 
-        return response()->json(['success' => true]);
+            $examinerPresenceCount = DefenseExaminer::where('applicant_id', $examiner->applicant_id)
+                ->has('defenseExaminerPresence')
+                ->count();
+
+            if ($examinerPresenceCount >= 3) {
+                return response()->json(['success' => false, 'message' => 'The maximum number of examiners has been reached.'], 409);
+            }
+
+            DefenseExaminerPresence::create([
+                'defense_examiner_id' => $examinerId,
+                'event_id' => $examiner->event_id,
+                'examiner_id' => $examiner->examiner_id,
+            ]);
+
+            $research = Research::with('supervisor.staff', 'supervisor.defenseSupervisorPresence', 'DEFDONE')
+                ->find($examiner->defenseApplicant?->research_id);
+
+            if ($research && $research->supervisor) {
+                foreach ($research->supervisor as $supervisor) {
+                    if (is_null($supervisor->defenseSupervisorPresence) && $supervisor->staff) {
+                        DefenseSupervisorPresence::create([
+                            'research_supervisor_id' => $supervisor->id,
+                            'event_id' => $examiner->event_id,
+                            'supervisor_id' => $supervisor->staff->id,
+                            'research_id' => $research->id,
+                        ]);
+                    }
+                }
+
+                $doneMilestone = ResearchMilestone::where('code', 'Pre-defense')->where('phase', 'Done')->first();
+                if ($doneMilestone) {
+                    $research->update(['milestone_id' => $doneMilestone->id]);
+                }
+
+                $defDoneLogType = ResearchLogType::where('code', 'DEFDONE')->first();
+                if (is_null($research->DEFDONE) && $defDoneLogType) {
+                    ResearchLog::create([
+                        'research_id' => $research->id,
+                        'type_id' => $defDoneLogType->id,
+                        'loger_id' => Auth::user()->id,
+                        'message' => $defDoneLogType->description,
+                        'status' => 1,
+                    ]);
+                }
+            }
+
+            return response()->json(['success' => true, 'message' => 'Presence marked.']);
+        } catch (\Exception $e) {
+            Log::error('toggleExaminerPresence error: ' . $e->getMessage(), [
+                'examiner_id' => $examinerId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function searchStaff(Request $request)

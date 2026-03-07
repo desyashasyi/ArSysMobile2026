@@ -1,4 +1,4 @@
-package com.example.arsys
+package com.deewahyu.arsys
 
 import io.flutter.embedding.android.FlutterActivity
 

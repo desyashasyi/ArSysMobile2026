@@ -24,4 +24,9 @@ class DefenseApproval extends Model
     {
         return $this->belongsTo(DefenseModel::class, 'defense_model_id', 'id');
     }
+
+    public function defenseRole()
+    {
+        return $this->belongsTo(DefenseRole::class, 'approver_role', 'id');
+    }
 }

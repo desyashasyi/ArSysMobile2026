@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:arsys/features/auth/data/services/auth_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:arsys/features/auth/application/auth_provider.dart';
 
@@ -47,8 +48,28 @@ class PreDefenseRepository {
 
   Future<void> toggleExaminerPresence(int examinerId) async {
     final response = await _authService.post('/staff/pre-defense/examiner/$examinerId/presence', {});
+    
+    debugPrint('--- TOGGLE EXAMINER PRESENCE RESPONSE ---');
+    debugPrint('Status Code: ${response.statusCode}');
+    debugPrint('Response Body: ${response.body}');
+    debugPrint('---------------------------------------');
+
     if (response.statusCode != 200) {
-      throw Exception('Failed to update presence');
+      String errorMessage = 'Failed to update presence (status: ${response.statusCode})';
+      try {
+        final error = json.decode(response.body);
+        if (error is Map && error['message'] != null) {
+          errorMessage = error['message'].toString();
+        }
+      } on FormatException {
+        // response body is not JSON, use default message
+      }
+      throw Exception(errorMessage);
+    }
+
+    final body = json.decode(response.body);
+    if (body['success'] == false) {
+      throw Exception(body['message'] ?? 'Failed to update presence');
     }
   }
 
@@ -64,7 +85,12 @@ class PreDefenseRepository {
   Future<void> addExaminer(int participantId, int staffId) async {
     final response = await _authService.post('/staff/pre-defense/participant/$participantId/add-examiner', {'staff_id': staffId});
     if (response.statusCode != 200) {
-      throw Exception('Failed to add examiner');
+      try {
+        final error = json.decode(response.body);
+        throw Exception(error['message'] ?? 'Failed to add examiner');
+      } catch (e) {
+        throw Exception('Failed to add examiner. Invalid error format.');
+      }
     }
   }
 
@@ -84,7 +110,12 @@ class PreDefenseRepository {
     }
     final response = await _authService.post('/staff/pre-defense/participant/$participantId/score', body);
     if (response.statusCode != 200) {
-      throw Exception('Failed to submit score');
+      try {
+        final error = json.decode(response.body);
+        throw Exception(error['message'] ?? 'Failed to submit score');
+      } catch (e) {
+        throw Exception('Failed to submit score. Invalid error format.');
+      }
     }
   }
 }

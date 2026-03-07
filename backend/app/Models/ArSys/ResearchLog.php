@@ -9,6 +9,10 @@ class ResearchLog extends Model
 {
     use HasFactory;
     protected $guarded = [];
-    protected $fillable = [];
     protected $table = 'arsys_research_log';
+
+    public function type()
+    {
+        return $this->belongsTo(ResearchLogType::class, 'type_id', 'id');
+    }
 }

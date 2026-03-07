@@ -54,6 +54,10 @@ class Research extends Model
         return $this->hasMany(ResearchSupervisor::class, 'research_id', 'id');
     }
 
+    public function supervisorexternal(){
+        return $this->hasOne(ResearchSupervisorExternal::class, 'research_id', 'id');
+    }
+
     public function type(){
         return $this->belongsTo(ResearchType::class,  'type_id', 'id');
     }
@@ -107,5 +111,12 @@ class Research extends Model
 
     public function remark(){
         return $this->hasMany(ResearchRemark::class, 'research_id', 'id');
+    }
+
+    public function DEFDONE()
+    {
+        return $this->hasOne(ResearchLog::class, 'research_id', 'id')->whereHas('type', function ($query) {
+            $query->where('code', 'DEFDONE');
+        });
     }
 }

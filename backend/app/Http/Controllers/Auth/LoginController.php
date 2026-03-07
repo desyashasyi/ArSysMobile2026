@@ -26,10 +26,20 @@ class LoginController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $userData = $user->toArray();
+        if ($user->staff) {
+            $userData['staff_id'] = $user->staff->id;
+            $userData['program_id'] = $user->staff->program_id;
+        }
+        if ($user->student) {
+            $userData['student_id'] = $user->student->id;
+            $userData['program_id'] = $user->student->program_id;
+        }
+
         return response()->json([
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'user' => $user,
+            'user' => $userData,
             'roles' => $user->getRoleNames()
         ]);
     }
